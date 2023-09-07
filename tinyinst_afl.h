@@ -19,7 +19,7 @@ limitations under the License.
 
 extern "C" int tinyinst_init(int argc, char** argv);
 extern "C" void tinyinst_set_fuzzer_id(char* fuzzer_id);
-extern "C" int tinyinst_run(char** argv, uint32_t timeout);
+extern "C" int tinyinst_run(char** argv, uint32_t timeout, uint64_t pid);
 extern "C" void tinyinst_killtarget();
 
 #endif // TINYINST_AFL_H

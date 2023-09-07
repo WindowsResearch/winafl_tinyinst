@@ -67,7 +67,7 @@
 #ifdef TINYINST
 int tinyinst_init(int argc, char** argv);
 void tinyinst_set_fuzzer_id(char* fuzzer_id);
-int tinyinst_run(char** argv, uint32_t timeout);
+int tinyinst_run(char** argv, uint32_t timeout, uint64_t pid);
 void tinyinst_killtarget();
 #endif
 
@@ -2816,14 +2816,14 @@ char *get_test_case(long *fsize)
 }
 
 /* This function is used to call user-defined server routine to send data back into sample */
-static int process_test_case_into_dll(int fuzz_iterations)
+static int process_test_case_into_dll(int *fuzz_iterations)
 {
   int result;
   long fsize;
 
   char *buf = get_test_case(&fsize);
 
-  result = dll_run_ptr(buf, fsize, fuzz_iterations); /* caller should copy the buffer */
+  result = dll_run_ptr(buf, fsize, *fuzz_iterations); /* caller should copy the buffer */
 
   free(buf);
 
@@ -2835,7 +2835,14 @@ static int process_test_case_into_dll(int fuzz_iterations)
 
 /* Execute target application, monitoring for timeouts. Return status
    information. The called program will update trace_bits[]. */
+HANDLE threadEvent = NULL;
 
+void post_data(LPVOID lpParam){
+  while (1) {
+    process_test_case_into_dll(lpParam);
+    WaitForSingleObject(threadEvent, INFINITE);
+  }
+}
 static u8 run_target(char** argv, u32 timeout) {
 	total_execs++;
 
@@ -2854,7 +2861,20 @@ static u8 run_target(char** argv, u32 timeout) {
 
 #ifdef TINYINST
   if (use_tinyinst) {
-    return tinyinst_run(argv, timeout);
+    if (dll_run_ptr) {
+      if (fuzz_iterations_current==0){
+        threadEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+        CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)post_data, &fuzz_iterations_current, 0, NULL);
+      }
+      // CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)process_test_case_into_dll, &fuzz_iterations_current, 0, NULL); 
+      //process_test_case_into_dll(&fuzz_iterations_current);
+    }
+    int stat;
+    stat = tinyinst_run(argv, timeout, drattachpid);
+    fuzz_iterations_current++;
+    SetEvent(threadEvent);
+    printf("fuzz_iterations_current is %d\n", fuzz_iterations_current);
+    return stat;
   }
 #endif
 
@@ -8442,8 +8462,7 @@ int main(int argc, char** argv) {
 
       case 'A':
         // attaching to a running process with the specified module
-        drattach = 1;
-        drattach_identifier = optarg;
+        drattachpid = atoi(optarg);
         break;
 
       case 'e':

@@ -71,7 +71,7 @@ int get_argc(char** argv) {
   return argc;
 }
 
-extern "C" int tinyinst_run(char** argv, uint32_t timeout) {
+extern "C" int tinyinst_run(char** argv, uint32_t timeout, uint64_t pid) {
   uint32_t init_timeout = timeout;
   DebuggerStatus status;
   int ret = FAULT_ERROR;
@@ -93,7 +93,7 @@ extern "C" int tinyinst_run(char** argv, uint32_t timeout) {
   } else {
     instrumentation->Kill();
     cur_iteration = 0;
-    status = instrumentation->Run(get_argc(argv), argv, timeout1);
+    status = instrumentation->Attach(pid, timeout1);
   }
 
   // if target function is defined,
