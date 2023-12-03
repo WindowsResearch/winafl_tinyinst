@@ -31,7 +31,7 @@ enum {
   /* 04 */ FAULT_NOINST,
   /* 05 */ FAULT_NOBITS
 };
-
+extern "C" int sig = 1;
 extern "C" int tinyinst_init(int argc, char** argv) {
   int lastoption = -1;
   for (int i = 1; i < argc; i++) {
@@ -72,10 +72,10 @@ int get_argc(char** argv) {
 }
 
 extern "C" int tinyinst_run(char** argv, uint32_t timeout, uint64_t pid) {
-  uint32_t init_timeout = timeout;
+   uint32_t init_timeout = timeout;
   DebuggerStatus status;
-  int ret = FAULT_ERROR;
-
+  int ret = FAULT_NONE;
+  
   if (instrumentation->IsTargetFunctionDefined()) {
     if (cur_iteration == num_iterations) {
       instrumentation->Kill();
@@ -95,69 +95,34 @@ extern "C" int tinyinst_run(char** argv, uint32_t timeout, uint64_t pid) {
     cur_iteration = 0;
     status = instrumentation->Attach(pid, timeout1);
   }
-
-  // if target function is defined,
-  // we should wait until it is hit
+  printf("sig is :%d\n", sig);
   if (instrumentation->IsTargetFunctionDefined()) {
-    if (status != DEBUGGER_TARGET_START) {
-      // try again with a clean process
-      WARN("Target function not reached, retrying with a clean process\n");
-      instrumentation->Kill();
-      cur_iteration = 0;
-      status = instrumentation->Run(get_argc(argv), argv, init_timeout);
-    }
-
-    if (status != DEBUGGER_TARGET_START) {
+    while (sig) {
+      status = instrumentation->Continue(timeout1);
       switch (status) {
       case DEBUGGER_CRASHED:
-        FATAL("Process crashed before reaching the target method\n");
+        ret = FAULT_CRASH;
+        instrumentation->Kill();
+        return ret;
         break;
       case DEBUGGER_HANGED:
-        FATAL("Process hanged before reaching the target method\n");
+      case DEBUGGER_TARGET_END:
+      case DEBUGGER_TARGET_START:
+        ret = FAULT_NONE;
         break;
       case DEBUGGER_PROCESS_EXIT:
-        FATAL("Process exited before reaching the target method\n");
+        ret = FAULT_NONE;
+        FATAL("Process Exit!!!\n");
         break;
       default:
-        FATAL("An unknown problem occured before reaching the target method\n");
+        FATAL("Unexpected status received from the debugger\n");
         break;
       }
     }
-
-    status = instrumentation->Continue(timeout);
+    cur_iteration++;
+    return ret;
   }
-
-  switch (status) {
-  case DEBUGGER_CRASHED:
-    ret = FAULT_CRASH;
-    instrumentation->Kill();
-    break;
-  case DEBUGGER_HANGED:
-    ret = FAULT_TMOUT;
-    instrumentation->Kill();
-    break;
-  case DEBUGGER_PROCESS_EXIT:
-    ret = FAULT_NONE;
-    if (instrumentation->IsTargetFunctionDefined()) {
-      WARN("Process exit during target function\n");
-      ret = FAULT_TMOUT;
-    }
-    break;
-  case DEBUGGER_TARGET_END:
-    if (instrumentation->IsTargetFunctionDefined()) {
-      ret = FAULT_NONE;
-      cur_iteration++;
-    }
-    else {
-      FATAL("Unexpected status received from the debugger\n");
-    }
-    break;
-  default:
-    FATAL("Unexpected status received from the debugger\n");
-    break;
-  }
-
-  return ret;
+  return ret;  
 }
 
 extern "C" void tinyinst_killtarget() {

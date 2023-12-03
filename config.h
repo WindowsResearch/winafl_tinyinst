@@ -49,7 +49,7 @@
 /* Default timeout for fuzzed code (milliseconds). This is the upper bound,
    also used for detecting hangs; the actual value is auto-scaled: */
 
-#define EXEC_TIMEOUT        20000
+#define EXEC_TIMEOUT        200
 
 /* Timeout rounding factor when auto-scaling (milliseconds): */
 

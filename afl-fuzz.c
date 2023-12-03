@@ -69,6 +69,7 @@ int tinyinst_init(int argc, char** argv);
 void tinyinst_set_fuzzer_id(char* fuzzer_id);
 int tinyinst_run(char** argv, uint32_t timeout, uint64_t pid);
 void tinyinst_killtarget();
+int sig;
 #endif
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
@@ -2839,7 +2840,9 @@ HANDLE threadEvent = NULL;
 
 void post_data(LPVOID lpParam){
   while (1) {
+    sig = 1;
     process_test_case_into_dll(lpParam);
+    sig = 0;
     WaitForSingleObject(threadEvent, INFINITE);
   }
 }

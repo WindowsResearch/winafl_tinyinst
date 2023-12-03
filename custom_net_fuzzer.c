@@ -66,11 +66,11 @@ static void send_data_tcp(const char *buf, const int buf_len, int first_time) {
         FATAL("socket() failed with error code : %d", WSAGetLastError());
 
     // Connect to server.
-    if (connect(s, (SOCKADDR *)& si_other, slen) == SOCKET_ERROR)
-        FATAL("connect() failed with error code : %d", WSAGetLastError());
+    if (connect(s, (SOCKADDR *)& si_other, slen) == SOCKET_ERROR) return 0;
+        //FATAL("connect() failed with error code : %d", WSAGetLastError());
     // Send our buffer
-    if (send(s, buf, buf_len, 0) == SOCKET_ERROR)
-        FATAL("send() failed with error code : %d", WSAGetLastError());
+    if (send(s, buf, buf_len, 0) == SOCKET_ERROR) return 0;
+        //FATAL("send() failed with error code : %d", WSAGetLastError());
     fprintf(stderr, "send success!!%d\n", first_time);
     int recvTimeout = 100;
     setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&recvTimeout ,sizeof(int));
